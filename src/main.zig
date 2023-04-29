@@ -1,7 +1,7 @@
 const std = @import("std");
 
 /// Function type that returns a prototype struct.
-/// Self will be the resulting statspatch struct. Methods must use this for the 
+/// Self will be the resulting statspatch struct. Methods must use this for the
 /// self-parameter instead of @This()!
 pub const PrototypeFn = fn (comptime Self: type) type;
 
@@ -32,16 +32,12 @@ pub fn StatspatchType(comptime Prototype: PrototypeFn, comptime impls: []const t
 pub inline fn implcall(
     /// The statspatch type. Passed as argument to the prototype function
     self: anytype,
-
     /// How the self-parameter to the function should be handled.
     comptime self_arg: enum { none, self, ptr, const_ptr },
-
     /// Name of the function to call
     comptime func_name: []const u8,
-
     /// Function return type
     comptime Return: type,
-
     /// Argument tuple to pass excluding self argument.
     args: anytype,
 ) Return {
@@ -67,7 +63,7 @@ fn Union(comptime impls: []const type) type {
     }
 
     const Enum = @Type(.{ .Enum = .{
-        .tag_type = std.meta.Int(.unsigned, std.math.log2(impls.len)),
+        .tag_type = std.meta.Int(.unsigned, std.math.log2_int_ceil(u16, impls.len)),
         .fields = enum_fields,
         .decls = &.{},
         .is_exhaustive = true,
@@ -94,8 +90,16 @@ fn Union(comptime impls: []const type) type {
 test "Union" {
     const Impl1 = struct { foo: u32 };
     const Impl2 = struct { bar: u16 };
-    _ = Union(&.{ Impl1, Impl2 });
+    const Impl3 = struct { baz: bool };
+    const U = Union(&.{ Impl1, Impl2, Impl3 });
     // Couldn't figure out how to test this :/
+    std.debug.print(
+        "Union: \n{s}\n",
+        .{comptime std.fmt.comptimePrint("{}\n\n{}", .{
+            @typeInfo(@typeInfo(U).Union.tag_type.?).Enum,
+            @typeInfo(U).Union,
+        })},
+    );
 }
 
 test "StatspatchType" {
