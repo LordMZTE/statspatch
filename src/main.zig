@@ -14,18 +14,7 @@ pub fn StatspatchType(comptime Prototype: PrototypeFn, comptime impls: []const t
         u: U,
 
         const Self = @This();
-        const Proto = Prototype(Self);
-        pub usingnamespace Proto;
-
-        comptime {
-            for (impls) |impl| {
-                for (@typeInfo(Proto).Struct.decls) |d| {
-                    if (!@hasDecl(impl, d.name)) {
-                        @compileError("Implementation " ++ @typeName(impl) ++ " missing decl " ++ d.name);
-                    }
-                }
-            }
-        }
+        pub usingnamespace Prototype(Self);
 
         pub fn create(imp: anytype) Self {
             inline for (@typeInfo(U).Union.fields) |f| {
