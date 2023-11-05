@@ -140,7 +140,10 @@ fn Union(comptime impls: []const type) type {
         union_fields = union_fields ++ [1]std.builtin.Type.UnionField{.{
             .name = @typeName(impl),
             .type = impl,
-            .alignment = @alignOf(impl),
+            // TODO: This causes issues when an impl contains a reference to the statspatch type.
+            // see: https://github.com/ziglang/zig/issues/17874
+            //.alignment = @alignOf(impl),
+            .alignment = 8,
         }};
     }
 
