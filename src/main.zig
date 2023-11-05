@@ -78,12 +78,12 @@ pub inline fn implcall(
     args: anytype,
 ) Return {
     switch (self.u) {
-        inline else => |impl| {
-            const func = @field(@TypeOf(impl), func_name);
+        inline else => |*impl| {
+            const func = @field(@TypeOf(impl.*), func_name);
             return switch (self_arg) {
                 .none => @call(.auto, func, args),
-                .self => @call(.auto, func, .{impl} ++ args),
-                inline .ptr, .const_ptr => @call(.auto, func, .{&impl} ++ args),
+                .self => @call(.auto, func, .{impl.*} ++ args),
+                inline .ptr, .const_ptr => @call(.auto, func, .{impl} ++ args),
             };
         },
     }
@@ -104,13 +104,13 @@ pub inline fn implcallOptional(
     args: anytype,
 ) ?Return {
     switch (self.u) {
-        inline else => |impl| {
-            if (@hasDecl(@TypeOf(impl), func_name)) {
-                const func = @field(@TypeOf(impl), func_name);
+        inline else => |*impl| {
+            if (@hasDecl(@TypeOf(impl.*), func_name)) {
+                const func = @field(@TypeOf(impl.*), func_name);
                 return switch (self_arg) {
                     .none => @call(.auto, func, args),
-                    .self => @call(.auto, func, .{impl} ++ args),
-                    inline .ptr, .const_ptr => @call(.auto, func, .{&impl} ++ args),
+                    .self => @call(.auto, func, .{impl.*} ++ args),
+                    inline .ptr, .const_ptr => @call(.auto, func, .{impl} ++ args),
                 };
             }
             return null;
