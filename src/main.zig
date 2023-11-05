@@ -7,19 +7,28 @@ pub const PrototypeFn = fn (comptime Self: type) type;
 
 /// Create a statically-dispatched type backed by a union(enum) for all implementations.
 /// Implementations must have all functions the prototype has.
-pub fn StatspatchType(comptime Prototype: PrototypeFn, comptime impls: []const type) type {
+pub fn StatspatchType(
+    /// The prototype struct declaring the functions of the type.
+    comptime Prototype: PrototypeFn,
+    /// Some data that will be added as a field to the resulting struct,
+    /// allowing for extra data storage common to all implementations.
+    comptime Data: type,
+    /// List of types implementing the prototype.
+    comptime impls: []const type,
+) type {
     const U = Union(impls);
 
     return struct {
         u: U,
+        data: Data,
 
         const Self = @This();
         pub usingnamespace Prototype(Self);
 
-        pub fn create(imp: anytype) Self {
+        pub fn create(imp: anytype, data: Data) Self {
             inline for (@typeInfo(U).Union.fields) |f| {
                 if (f.type == @TypeOf(imp)) {
-                    return .{ .u = @unionInit(U, f.name, imp) };
+                    return .{ .u = @unionInit(U, f.name, imp), .data = data };
                 }
             }
 
@@ -45,9 +54,9 @@ pub inline fn implcall(
         inline else => |impl| {
             const func = @field(@TypeOf(impl), func_name);
             return switch (self_arg) {
-                .none => @call(.always_inline, func, args),
-                .self => @call(.always_inline, func, .{impl} ++ args),
-                inline .ptr, .const_ptr => @call(.always_inline, func, .{&impl} ++ args),
+                .none => @call(.auto, func, args),
+                .self => @call(.auto, func, .{impl} ++ args),
+                inline .ptr, .const_ptr => @call(.auto, func, .{&impl} ++ args),
             };
         },
     }
@@ -63,7 +72,7 @@ fn Union(comptime impls: []const type) type {
     }
 
     const Enum = @Type(.{ .Enum = .{
-        .tag_type = std.meta.Int(.unsigned, std.math.log2_int_ceil(u16, impls.len)),
+        .tag_type = std.math.IntFittingRange(0, impls.len),
         .fields = enum_fields,
         .decls = &.{},
         .is_exhaustive = true,
@@ -112,10 +121,11 @@ test "StatspatchType" {
                 return struct {};
             }
         }.Proto,
+    void,
         &.{ Impl1, Impl2 },
     );
-    _ = T.create(Impl1{ .foo = 5 });
-    _ = T.create(Impl2{ .bar = 5 });
+    _ = T.create(Impl1{ .foo = 5 }, {});
+    _ = T.create(Impl2{ .bar = 5 }, {});
 }
 
 test "Prototype func" {
@@ -129,7 +139,6 @@ test "Prototype func" {
                 pub fn mulNum(self: Self, mul: u32) u32 {
                     return implcall(self, .self, "mulNum", u32, .{mul});
                 }
-
                 pub fn favoriteNum(self: Self) u32 {
                     return implcall(self, .none, "favoriteNum", u32, .{});
                 }
@@ -169,10 +178,13 @@ test "Prototype func" {
         }
     };
 
-    const T = StatspatchType(Proto, &.{ Impl1, Impl2 });
+    const T = StatspatchType(Proto, u32, &.{ Impl1, Impl2 });
 
-    const a = T.create(Impl1{ .n = 10 });
-    const b = T.create(Impl2{ .n = 5 });
+    const a = T.create(Impl1{ .n = 10 }, 1);
+    const b = T.create(Impl2{ .n = 5 }, 2);
+
+    try std.testing.expectEqual(@as(u32, 1), a.data);
+    try std.testing.expectEqual(@as(u32, 2), b.data);
 
     try std.testing.expectEqual(@as(u32, 10), a.getNum());
     try std.testing.expectEqual(@as(u32, 10), b.getNum());
