@@ -34,6 +34,33 @@ pub fn StatspatchType(
 
             @compileError("Unknown Implementation: " ++ @typeName(@TypeOf(imp)));
         }
+
+        pub fn DowncastResult(comptime SelfType: type, comptime T: type) type {
+            return switch (SelfType) {
+                Self => ?T,
+                *Self => ?*T,
+                *const Self => ?*const T,
+                else => @compileError("Invalid self type " ++ @typeName(SelfType) ++ " for downcast!"),
+            };
+        }
+
+        pub fn downcast(self: anytype, comptime T: type) DowncastResult(@TypeOf(self), T) {
+            inline for (std.meta.fields(U)) |f| {
+                if (f.type == T) {
+                    if (std.mem.eql(u8, @tagName(self.u), f.name)) {
+                        return switch (@TypeOf(self)) {
+                            Self => @field(self.u, f.name),
+                            *Self, *const Self => &@field(self.u, f.name),
+                            else => unreachable,
+                        };
+                    } else {
+                        return null;
+                    }
+                }
+            }
+
+            @compileError("Unknown Implementation: " ++ @typeName(T));
+        }
     };
 }
 
@@ -219,4 +246,10 @@ test "Prototype func" {
 
     try std.testing.expectEqual(@as(?u32, 42), a.favoriteNum());
     try std.testing.expectEqual(@as(?u32, null), b.favoriteNum());
+
+    try std.testing.expectEqual(Impl1{ .n = 10 }, a.downcast(Impl1).?.*);
+    try std.testing.expectEqual(Impl2{ .n = 5 }, b.downcast(Impl2).?.*);
+
+    try std.testing.expectEqual(@as(?*const Impl1, null), b.downcast(Impl1));
+    try std.testing.expectEqual(@as(?*const Impl2, null), a.downcast(Impl2));
 }
