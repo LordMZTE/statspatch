@@ -62,6 +62,35 @@ pub inline fn implcall(
     }
 }
 
+/// Call the given function in the implementation or do nothing if the implementation
+/// does not have the function. Use this in prototype functions.
+pub inline fn implcallOptional(
+    /// The statspatch type. Passed as argument to the prototype function
+    self: anytype,
+    /// How the self-parameter to the function should be handled.
+    comptime self_arg: enum { none, self, ptr, const_ptr },
+    /// Name of the function to call
+    comptime func_name: []const u8,
+    /// Function return type
+    comptime Return: type,
+    /// Argument tuple to pass excluding self argument.
+    args: anytype,
+) ?Return {
+    switch (self.u) {
+        inline else => |impl| {
+            if (@hasDecl(@TypeOf(impl), func_name)) {
+                const func = @field(@TypeOf(impl), func_name);
+                return switch (self_arg) {
+                    .none => @call(.auto, func, args),
+                    .self => @call(.auto, func, .{impl} ++ args),
+                    inline .ptr, .const_ptr => @call(.auto, func, .{&impl} ++ args),
+                };
+            }
+            return null;
+        },
+    }
+}
+
 fn Union(comptime impls: []const type) type {
     var enum_fields: []const std.builtin.Type.EnumField = &.{};
     for (impls, 0..) |impl, i| {
@@ -121,7 +150,7 @@ test "StatspatchType" {
                 return struct {};
             }
         }.Proto,
-    void,
+        void,
         &.{ Impl1, Impl2 },
     );
     _ = T.create(Impl1{ .foo = 5 }, {});
@@ -139,8 +168,8 @@ test "Prototype func" {
                 pub fn mulNum(self: Self, mul: u32) u32 {
                     return implcall(self, .self, "mulNum", u32, .{mul});
                 }
-                pub fn favoriteNum(self: Self) u32 {
-                    return implcall(self, .none, "favoriteNum", u32, .{});
+                pub fn favoriteNum(self: Self) ?u32 {
+                    return implcallOptional(self, .none, "favoriteNum", u32, .{});
                 }
             };
         }
@@ -172,10 +201,6 @@ test "Prototype func" {
         pub fn mulNum(self: @This(), mul: u32) u32 {
             return self.getNum() * mul / 2;
         }
-
-        pub fn favoriteNum() u32 {
-            return 69;
-        }
     };
 
     const T = StatspatchType(Proto, u32, &.{ Impl1, Impl2 });
@@ -192,6 +217,6 @@ test "Prototype func" {
     try std.testing.expectEqual(@as(u32, 20), a.mulNum(2));
     try std.testing.expectEqual(@as(u32, 20), b.mulNum(4));
 
-    try std.testing.expectEqual(@as(u32, 42), a.favoriteNum());
-    try std.testing.expectEqual(@as(u32, 69), b.favoriteNum());
+    try std.testing.expectEqual(@as(?u32, 42), a.favoriteNum());
+    try std.testing.expectEqual(@as(?u32, null), b.favoriteNum());
 }
