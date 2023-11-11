@@ -77,6 +77,8 @@ pub inline fn implcall(
     /// Argument tuple to pass excluding self argument.
     args: anytype,
 ) Return {
+    if (@typeInfo(@TypeOf(self.u)).Union.fields.len == 0)
+        unreachable;
     switch (self.u) {
         inline else => |*impl| {
             const func = @field(@TypeOf(impl.*), func_name);
@@ -103,6 +105,8 @@ pub inline fn implcallOptional(
     /// Argument tuple to pass excluding self argument.
     args: anytype,
 ) ?Return {
+    if (@typeInfo(@TypeOf(self.u)).Union.fields.len == 0)
+        unreachable;
     switch (self.u) {
         inline else => |*impl| {
             if (@hasDecl(@TypeOf(impl.*), func_name)) {
