@@ -149,7 +149,7 @@ fn Union(comptime impls: []const type) type {
     }
 
     return @Type(.{ .Union = .{
-        .layout = .Auto,
+        .layout = .auto,
         .tag_type = Enum,
         .fields = union_fields,
         .decls = &.{},
