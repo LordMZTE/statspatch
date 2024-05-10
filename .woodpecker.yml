@@ -1,7 +1,0 @@
-steps:
-  build:
-    image: git.mzte.de/lordmzte/zig-build
-    pull: true
-    commands:
-      - zig fmt --check .
-      - zig build -Doptimize=ReleaseFast
