@@ -5,11 +5,11 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     _ = b.addModule("statspatch", .{
-        .root_source_file = .{ .src_path = .{ .owner = b, .sub_path = "src/main.zig" } },
+        .root_source_file = b.path("src/main.zig"),
     });
 
     const main_tests = b.addTest(.{
-        .root_source_file = .{ .src_path = .{ .owner = b, .sub_path = "src/main.zig" } },
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
